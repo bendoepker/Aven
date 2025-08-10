@@ -1,0 +1,21 @@
+trait printable {
+    print(): void;
+}
+
+trait addable {
+    add(x: self)
+}
+
+[[
+    printable,
+    addable
+]]
+class Baz {
+    
+}
+
+fn main(): i32 {
+    let foo: u8[] = "Hello";
+    let bar = " World!";
+    Print(foo, bar);
+}
