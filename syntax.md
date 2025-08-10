@@ -33,10 +33,9 @@ for:                can be used in a c style:
                         for(setup; exit condition; post loop execution) {}
                     can be used in a modern style:
                         for(idx in arr) {}
-do / while:         can be used as:
-                        do {} while(condition);
+while:         can be used as:
                         while(condition) {}
-                        while(condition) {}
+                        {} while(condition)
 
 if
 else
@@ -48,17 +47,21 @@ typealias:          alias a type to another name
 fn:                 function
 fnptr:              function pointer
 let:                variable declarator
+
 import:             import external functionality
+enable:             enable a language feature, library ability, or compiler feature
+disable:            disable a language feature, library ability, or compiler feature
+
 trait:              define traits that a class must inherit
 self (type):        referring to the type which inherits a trait
 self (variable):    referring to the instance of the class which a function is being called from
 
 ## Operators
 Mathematical:       + - * / = += -= *= /=
-Incr / Decr:        ++x --x
+Incr / Decr:        ++ --
 Bitwise:            & | ^ ~ << >> &= |= ^= <<= >>=
 Comparison:         < > == <= >=
-Logical Operators:  ! || &&
+Logical Operators:  ! or and
 Array:              [ ] { }
 Scope:              { } ;
 Type:               :

@@ -11,8 +11,12 @@ trait addable {
     addable
 ]]
 class Baz {
-    
 }
+/*This
+is
+a 
+multi line
+comment*/
 
 fn main(): i32 {
     let foo: u8[] = "Hello";
