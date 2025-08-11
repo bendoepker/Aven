@@ -32,6 +32,7 @@ const TokenType = enum {
     UncheckedInt64,
     True,
     False,
+    Void,
     Voidptr,
     Bool,
 
@@ -54,6 +55,7 @@ const TokenType = enum {
     Self,
 
     // Literals
+    CharacterLiteral,
     StringLiteral,
     IntegerLiteral,
     FloatLiteral,
@@ -63,14 +65,15 @@ const TokenType = enum {
     CloseCurly,
     OpenBracket,
     CloseBracket,
-    DoubleOpenBracket,
-    DoubleCloseBracket,
+    OpenTraitDecorator,
+    CloseTraitDecorator,
     OpenParen,
     CloseParen,
     Colon,
     Semicolon,
     Comma,
     Period,
+    TargetSymbol,
 
     // Operators
     Plus,
@@ -87,7 +90,7 @@ const TokenType = enum {
     Increment,
     Decrement,
 
-    BitwiseAnd,
+    Ampersand, // Could be a pointer or bitwise and
     BitwiseOr,
     BitwiseXor,
     BitwiseNot,
@@ -129,13 +132,14 @@ pub fn tokinize(file: std.fs.File) !std.ArrayList(Token) {
     var tokens = std.ArrayList(Token).init(alc);
     var start: usize = 0;
     var in_string = false;
+    var in_char = false;
     var in_word = false;
     var in_sl_comment = false;
     var in_ml_comment = false;
     var ml_comment_beginning: usize = 0;
     var string_car_ret: usize = 0;
     var string_newline: usize = 0;
-    var skip = 0;
+    var skip: usize = 0;
 
     // Main loop, iterating over each character and constructing an array of tokens
     //TODO: Multi line comments, multiple character symbols
@@ -154,8 +158,18 @@ pub fn tokinize(file: std.fs.File) !std.ArrayList(Token) {
                 '\r' => string_car_ret += 1,
                 '\n' => string_newline += 1,
                 '"' => {
-                    try tokens.append(.{.type = TokenType.StringLiteral, .data = data[start+1..pos]});
+                    try tokens.append(.{.type = .StringLiteral, .data = data[start+1..pos]});
                     in_string = false;
+                    start = pos + 1;
+                    continue;
+                },
+                else => continue
+            }
+        } else if(in_char) {
+            switch(char) {
+                '\'' => {
+                    try tokens.append(.{ .type = .CharacterLiteral, .data = data[start+1..pos]});
+                    in_char = false;
                     start = pos + 1;
                     continue;
                 },
@@ -186,14 +200,362 @@ pub fn tokinize(file: std.fs.File) !std.ArrayList(Token) {
                     }
                 },
                 // Symbols
-                '+', '-', '/', '*', '&', '|', '^', '=', '~', '<', '>', '!', '(', ')', '{', '}', '[', ']', ':', ';', ',', '@' => {
-                    //TODO: Separate these out and do lookahead for double / triple character symbols
+                '+' => {
                     if(in_word) {
                         in_word = false;
                         try tokens.append(tokenize_word(data[start..pos]));
                     }
-                    try tokens.append(tokenize_symbol(char));
+                    try tokens.append(Token { .type = .Plus, .data = null });
+                    // Check for another plus sign
+                    if(data.len - 1 > pos) {
+                        if(data[pos + 1] == '+') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .Increment;
+                            skip = 1;
+                            start = pos + 2;
+                        } else {
+                            start = pos + 1;
+                        }
+                    }
+                    continue;
+                },
+                '-' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .Minus, .data = null });
+                    // Check for another minus sign
+                    if(data.len - 1 > pos) {
+                        if(data[pos + 1] == '-') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .Decrement;
+                            skip = 1;
+                            start = pos + 2;
+                        } else {
+                            start = pos + 1;
+                        }
+                    }
+                    continue;
+                },
+                '/' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .Divide, .data = null });
+                    // Check for an asterisk or another forward slash
+                    if(data.len - 1 > pos) {
+                        if(data[pos + 1] == '*') {
+                            _ = tokens.pop();
+                            skip = 1;
+                            start = pos + 2;
+                            in_ml_comment = true;
+                            ml_comment_beginning = tokens.items.len;
+                        } else if(data[pos + 1] == '/') {
+                            _ = tokens.pop();
+                            skip = 1;
+                            start = pos + 2;
+                            in_sl_comment = true;
+                        } else {
+                            start = pos + 1;
+                        }
+                    }
+                    continue;
+                },
+                '*' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .Divide, .data = null });
+                    // Check for an equal sign or forward slash
+                    if(data.len - 1 > pos) {
+                        if(data[pos + 1] == '=') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .MultiplyEqual;
+                            skip = 1;
+                            start = pos + 2;
+                        } else if(data[pos + 1] == '/') {
+                            _ = tokens.pop();
+                            skip = 1;
+                            start = pos + 2;
+                            for(ml_comment_beginning..tokens.items.len) |_| {
+                                _ = tokens.pop();
+                            }
+                        } else {
+                            start = pos + 1;
+                        }
+                    }
+                    continue;
+                },
+                '&' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .Ampersand, .data = null });
+                    // Check for an equal sign after the ampersand
+                    if(data.len - 1 > pos) {
+                        if(data[pos + 1] == '=') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .BitwiseAndEqual;
+                            skip = 1;
+                            start = pos + 2;
+                        } else {
+                            start = pos + 1;
+                        }
+                    }
+                    continue;
+                },
+                '|' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .BitwiseOr, .data = null });
+                    // Check for an equal sign after the pipe
+                    if(data.len - 1 > pos) {
+                        if(data[pos + 1] == '=') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .BitwiseOrEqual;
+                            skip = 1;
+                            start = pos + 2;
+                        } else {
+                            start = pos + 1;
+                        }
+                    }
+                    continue;
+                },
+                '^' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .BitwiseXor, .data = null });
+                    // Check for an equal sign after the carrot
+                    if(data.len - 1 > pos) {
+                        if(data[pos + 1] == '=') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .BitwiseXorEqual;
+                            skip = 1;
+                            start = pos + 2;
+                        } else {
+                            start = pos + 1;
+                        }
+                    }
+                    continue;
+                },
+                '=' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .Equal, .data = null });
+                    // Check for another equal sign
+                    if(data.len - 1 > pos) {
+                        if(data[pos + 1] == '=') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .LogicalEqualTo;
+                            skip = 1;
+                            start = pos + 2;
+                        } else {
+                            start = pos + 1;
+                        }
+                    }
+                    continue;
+                },
+                '~' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .BitwiseNot, .data = null });
                     start = pos + 1;
+                    continue;
+                },
+                '<' => {
+                    // Could be: <, <=, <<, <<=
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .LogicalLessThan, .data = null });
+                    // Check for another left carrot or equal sign
+                    if(data.len - 1 > pos) {
+                        if(data[pos + 1] == '=') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .LogicalLessThanEqualTo;
+                            skip = 1;
+                            start = pos + 2;
+                        } else if(data[pos + 1] == '<') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .BitwiseLeftShift;
+                            if(data.len - 1 > pos + 1) {
+                                if(data[pos + 2] == '=') {
+                                    tokens.items.ptr[tokens.items.len - 1].type = .BitwiseLeftShiftEqual;
+                                    skip = 2;
+                                    start = pos + 3;
+                                } else {
+                                    skip = 1;
+                                    start = pos + 2;
+                                }
+                            } else {
+                                start = pos + 1;
+                            }
+                        } else {
+                            start = pos + 1;
+                        }
+                    }
+                    continue;
+                },
+                '>' => {
+                    // Could be: >, >=, >>, >>=
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .LogicalGreaterThan, .data = null });
+                    // Check for another left carrot or equal sign
+                    if(data.len - 1 > pos) {
+                        if(data[pos + 1] == '=') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .LogicalGreaterThanEqualTo;
+                            skip = 1;
+                            start = pos + 2;
+                        } else if(data[pos + 1] == '>') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .BitwiseRightShift;
+                            if(data.len - 1 > pos + 1) {
+                                if(data[pos + 2] == '=') {
+                                    tokens.items.ptr[tokens.items.len - 1].type = .BitwiseRightShiftEqual;
+                                    skip = 2;
+                                    start = pos + 3;
+                                } else {
+                                    skip = 1;
+                                    start = pos + 2;
+                                }
+                            } else {
+                                start = pos + 1;
+                            }
+                        } else {
+                            start = pos + 1;
+                        }
+                    }
+                    continue;
+                },
+                '!' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .LogicalNot, .data = null });
+                    start = pos + 1;
+                    continue;
+                },
+                '(' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .OpenParen, .data = null });
+                    start = pos + 1;
+                    continue;
+                },
+                ')' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .CloseParen, .data = null });
+                    start = pos + 1;
+                    continue;
+                },
+                '{' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .OpenCurly, .data = null });
+                    start = pos + 1;
+                    continue;
+                },
+                '}' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .CloseCurly, .data = null });
+                    start = pos + 1;
+                    continue;
+                },
+                '[' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .OpenBracket, .data = null });
+                    // Check for another plus sign
+                    if(data.len - 1 > pos) {
+                        if(data[pos + 1] == '[') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .OpenTraitDecorator;
+                            skip = 1;
+                            start = pos + 2;
+                        } else {
+                            start = pos + 1;
+                        }
+                    }
+                    continue;
+                },
+                ']' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .CloseBracket, .data = null });
+                    // Check for another plus sign
+                    if(data.len - 1 > pos) {
+                        if(data[pos + 1] == ']') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .CloseTraitDecorator;
+                            skip = 1;
+                            start = pos + 2;
+                        } else {
+                            start = pos + 1;
+                        }
+                    }
+                    continue;
+                },
+                ':' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .Colon, .data = null });
+                    start = pos + 1;
+                    continue;
+                },
+                ';' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type =.Semicolon, .data = null });
+                    start = pos + 1;
+                    continue;
+                },
+                ',' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type =.Comma, .data = null });
+                    start = pos + 1;
+                    continue;
+                },
+                '@' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type =.TargetSymbol, .data = null });
+                    start = pos + 1;
+                    continue;
+                },
+                '\'' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    in_char = true;
                     continue;
                 },
                 '.' => {
@@ -204,7 +566,7 @@ pub fn tokinize(file: std.fs.File) !std.ArrayList(Token) {
                             in_word = false;
                             try tokens.append(tokenize_word(data[start..pos]));
                         }
-                        try tokens.append(tokenize_symbol(char));
+                        try tokens.append(Token {.type = .Period, .data = null });
                         start = pos + 1;
                     }
                 },
@@ -217,131 +579,101 @@ pub fn tokinize(file: std.fs.File) !std.ArrayList(Token) {
     return tokens;
 }
 
-fn tokenize_symbol(symbol: u8) Token {
-    switch(symbol) {
-        // Symbols
-        '{' => return Token { .type = TokenType.OpenCurly, .data = null },
-        '}' => return Token { .type = TokenType.CloseCurly, .data = null },
-        '[' => return Token { .type = TokenType.OpenBracket, .data = null },
-        ']' => return Token { .type = TokenType.CloseBracket, .data = null },
-        '(' => return Token { .type = TokenType.OpenParen, .data = null },
-        ')' => return Token { .type = TokenType.CloseParen, .data = null },
-        ':' => return Token { .type = TokenType.Colon, .data = null },
-        ';' => return Token { .type = TokenType.Semicolon, .data = null },
-        '.' => return Token { .type = TokenType.Period, .data = null },
-        ',' => return Token { .type = TokenType.Comma, .data = null },
-
-        '+' => return Token { .type = TokenType.Plus, .data = null },
-        '-' => return Token { .type = TokenType.Minus, .data = null },
-        '*' => return Token { .type = TokenType.Asterisk, .data = null },
-        '/' => return Token { .type = TokenType.Divide, .data = null },
-        '=' => return Token { .type = TokenType.Equal, .data = null },
-
-        '&' => return Token { .type = TokenType.BitwiseAnd, .data = null },
-        '|' => return Token { .type = TokenType.BitwiseOr, .data = null },
-        '^' => return Token { .type = TokenType.BitwiseXor, .data = null },
-        '~' => return Token { .type = TokenType.BitwiseNot, .data = null },
-
-        '<' => return Token { .type = TokenType.LogicalLessThan, .data = null },
-        '>' => return Token { .type = TokenType.LogicalGreaterThan, .data = null },
-        '!' => return Token { .type = TokenType.LogicalNot, .data = null },
-        else => return Token { .type = TokenType.Unknown, .data = null }
-    }
-}
-
 fn tokenize_word(word: [] u8) Token {
     // Integer types
     if(streql(word, "i8")) {
-        return Token { .type = TokenType.Int8, .data = null };
+        return Token { .type = .Int8, .data = null };
     } else if(streql(word, "i16")) {
-        return Token { .type = TokenType.Int16, .data = null };
+        return Token { .type = .Int16, .data = null };
     } else if(streql(word, "i32")) {
-        return Token { .type = TokenType.Int32, .data = null };
+        return Token { .type = .Int32, .data = null };
     } else if(streql(word, "i64")) {
-        return Token { .type = TokenType.Int64, .data = null };
+        return Token { .type = .Int64, .data = null };
     } else if(streql(word, "u8")) {
-        return Token { .type = TokenType.UInt8, .data = null };
+        return Token { .type = .UInt8, .data = null };
     } else if(streql(word, "u16")) {
-        return Token { .type = TokenType.UInt16, .data = null };
+        return Token { .type = .UInt16, .data = null };
     } else if(streql(word, "u32")) {
-        return Token { .type = TokenType.UInt32, .data = null };
+        return Token { .type = .UInt32, .data = null };
     } else if(streql(word, "u64")) {
-        return Token { .type = TokenType.UInt64, .data = null };
+        return Token { .type = .UInt64, .data = null };
     }
     // Floating point types
     else if(streql(word, "f32") or streql(word, "float")) {
-        return Token { .type = TokenType.Float32, .data = null };
+        return Token { .type = .Float32, .data = null };
     } else if(streql(word, "f64") or streql(word, "double")) {
-        return Token { .type = TokenType.Float64, .data = null };
+        return Token { .type = .Float64, .data = null };
     }
     // C style integers
     else if(streql(word, "unsinged")) {
-        return Token { .type = TokenType.Unsigned, .data = null };
+        return Token { .type = .Unsigned, .data = null };
     } else if(streql(word, "char")) {
-        return Token { .type = TokenType.UncheckedInt8, .data = null };
+        return Token { .type = .UncheckedInt8, .data = null };
     } else if(streql(word, "short")) {
-        return Token { .type = TokenType.UncheckedInt16, .data = null };
+        return Token { .type = .UncheckedInt16, .data = null };
     } else if(streql(word, "int")) {
-        return Token { .type = TokenType.UncheckedInt32, .data = null };
+        return Token { .type = .UncheckedInt32, .data = null };
     } else if(streql(word, "long")) {
-        return Token { .type = TokenType.UncheckedInt64, .data = null };
+        return Token { .type = .UncheckedInt64, .data = null };
     }
     // Booleans
     else if(streql(word, "bool")) {
-        return Token { .type = TokenType.Bool, .data = null };
+        return Token { .type = .Bool, .data = null };
     } else if(streql(word, "true")) {
-        return Token { .type = TokenType.True, .data = null };
+        return Token { .type = .True, .data = null };
     } else if(streql(word, "false")) {
-        return Token { .type = TokenType.False, .data = null };
+        return Token { .type = .False, .data = null };
     }
 
     else if(streql(word, "if")) {
-        return Token { .type = TokenType.If, .data = null };
+        return Token { .type = .If, .data = null };
     } else if(streql(word, "else")) {
-        return Token { .type = TokenType.Else, .data = null };
+        return Token { .type = .Else, .data = null };
     }
 
     else if(streql(word, "for")) {
-        return Token { .type = TokenType.For, .data = null };
+        return Token { .type = .For, .data = null };
     } else if(streql(word, "while")) {
-        return Token { .type = TokenType.While, .data = null };
+        return Token { .type = .While, .data = null };
     } else if(streql(word, "class")) {
-        return Token { .type = TokenType.Class, .data = null };
+        return Token { .type = .Class, .data = null };
     } else if(streql(word, "struct")) {
-        return Token { .type = TokenType.Struct, .data = null };
+        return Token { .type = .Struct, .data = null };
     } else if(streql(word, "typealias")) {
-        return Token { .type = TokenType.Typealias, .data = null };
+        return Token { .type = .Typealias, .data = null };
     } else if(streql(word, "fn")) {
-        return Token { .type = TokenType.Fn, .data = null };
+        return Token { .type = .Fn, .data = null };
     } else if(streql(word, "fnptr")) {
-        return Token { .type = TokenType.Fnptr, .data = null };
+        return Token { .type = .Fnptr, .data = null };
     } else if(streql(word, "let")) {
-        return Token { .type = TokenType.Let, .data = null };
+        return Token { .type = .Let, .data = null };
     } else if(streql(word, "import")) {
-        return Token { .type = TokenType.Import, .data = null };
+        return Token { .type = .Import, .data = null };
     } else if(streql(word, "enable")) {
-        return Token { .type = TokenType.Enable, .data = null };
+        return Token { .type = .Enable, .data = null };
     } else if(streql(word, "disable")) {
-        return Token { .type = TokenType.Disable, .data = null };
+        return Token { .type = .Disable, .data = null };
     } else if(streql(word, "trait")) {
-        return Token { .type = TokenType.Trait, .data = null };
+        return Token { .type = .Trait, .data = null };
     } else if(streql(word, "self")) {
-        return Token { .type = TokenType.Self, .data = null };
+        return Token { .type = .Self, .data = null };
     }
-    // Void pointer
+    // Void types
     else if(streql(word, "voidptr")) {
-        return Token { .type = TokenType.Voidptr, .data = null };
+        return Token { .type = .Voidptr, .data = null };
+    } else if(streql(word, "void")) {
+        return Token { .type = .Void, .data = null };
     }
 
     // Logical Operators
     else if(streql(word, "or")) {
-        return Token { .type = TokenType.LogicalOr, .data = null };
+        return Token { .type = .LogicalOr, .data = null };
     } else if(streql(word, "and")) {
-        return Token { .type = TokenType.LogicalAnd, .data = null };
+        return Token { .type = .LogicalAnd, .data = null };
     }
 
     // Base return type
     else {
-        return Token { .type = TokenType.Unknown, .data = word };
+        return Token { .type = .Unknown, .data = word };
     }
 }

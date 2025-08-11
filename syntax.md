@@ -25,7 +25,8 @@ f64     or      double
 
 bool    or      true / false
 
-voidptr
+voidptr             symbolizes a null pointer / pointer to 0x00000000
+void                used to symbolize that a function has no return value
 
 ## Keywords
 
@@ -82,9 +83,39 @@ All functions begin with the keyword 'fn' and have a return type specified after
 Every parameter for a function must explicitly define its parameter type after each parameter
 Function Pointer:   fnptr function_name(param1: param1_type, param2: param2_type): return_type;
 
+## String Literals
+String literals will be null terminated
+
+## Character Literals
+Character literals will be interpreted as u8's, supported escape codes are:
+    \0: Null byte (0x00)
+    \n: Newline Character
+    \r: Carriage Return Character
+    \t: Tab Character
+    \': Single Quote Character
+    \": Double Quote Character
+    \\: Backslash Character
+
 ## Mathematical Operators
-All mathematical, increment, decrement, and bitwise operators work as they would in C on integer and floating
-point data types
+### +
+The addition operator will work as it does in C on numerical types (Non-pointer types)
+
+### -
+The subtraction operator will work as it does in C on numerical types (Non-pointer types)
+
+### *
+The multiplication operator will work as it does in C on numerical types
+
+### /
+The division operator will work as it does in C on numerical types
+
+### +=, -=, *=, and /=
+The (+-*/) assignment operators will work as it does in C on numerical types (Non-pointer types)
+
+### ++ and --
+The increment and decrement operators will only work on integer and floating point types.
+They will not be allowed within function calls (they can instead be called on the previous line)
+and must always be placed after the variable (foo++ is allowed, ++foo is not allowed)
 
 ## Pointer / Memory address
 Variables can hold pointers to data types (primitives, structs, and classes) using the syntax:

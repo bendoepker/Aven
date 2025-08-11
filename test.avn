@@ -1,6 +1,7 @@
 trait printable {
     print(): void;
 }
+'\n'
 
 trait addable {
     add(x: self)

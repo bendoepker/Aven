@@ -22,7 +22,7 @@ pub fn main() !u8 {
         const tk = tokens.items[i];
         print("{s}", .{@tagName(tk.type)});
         if(tk.data != null) {
-            print(" {?s}", .{tk.data});
+            print(" |{?s}|", .{tk.data});
         }
         print("\n", .{});
     }
