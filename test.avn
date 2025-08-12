@@ -1,26 +1,5 @@
-trait printable {
-    print(): void;
-}
-'\n'
-
-trait addable {
-    add(x: self)
-}
-
-[[
-    printable,
-    addable
-]]
-class Baz {
-}
-/*This
-is
-a 
-multi line
-comment*/
-
 fn main(): i32 {
-    let foo: u8[] = "Hello";
-    let bar = " World!";
-    Print(foo, bar);
+    let x: i8 = 1;
+    let y: i8 = 2;
+    let z = x + y;
 }
