@@ -2,20 +2,20 @@
 ## Primitives
 
 ```
-i8      or      char
-i16     or      short
-i32     or      int
-i64     or      long
+i8
+i16
+i32
+i64
 
-u8      or      unsigned char
-u16     or      unsigned short
-u32     or      unsigned int
-u64     or      unsigned long
+u8
+u16
+u32
+u64
 
-f32     or      float
-f64     or      double
+f32
+f64
 
-bool    or      true / false
+bool                a u8 in disguise that will either be 0 or 1
 
 voidptr             symbolizes a null pointer / pointer to 0x00000000
 void                used to symbolize that a function has no return value
@@ -36,8 +36,13 @@ if
 else
 else if
 
-class:              structured data with implicitly related functions and private data fields
+true
+false
+
 struct:             structured data without implicitly related functions
+enum:               enumerated list of constants which can be manually set to a integral value 
+                    (i64) or automatically counted if left unannotated
+
 typealias:          alias a type to another name
 fn:                 function
 fnptr:              function pointer
@@ -55,7 +60,7 @@ self (variable):    referring to the instance of the class which a function is b
 ## Operators
 
 ```
-Mathematical:       + - * / = += -= *= /=
+Mathematical:       + - * / % = += -= *= /= %=
 Incr / Decr:        ++ --
 Bitwise:            & | ^ ~ << >> &= |= ^= <<= >>=
 Comparison:         < > == <= >=
@@ -102,21 +107,37 @@ Character literals will be interpreted as u8's, supported escape codes are:
     \\: Backslash Character
 ```
 
+## Operator Precedence
+```
+High precedence
+
+    
+
+Low precedence
+```
+
 ## Mathematical Operators
 ### +
-The addition operator will work as it does in C on numerical types (Non-pointer types)
+The addition operator will work as it does in C on numerical types, for pointer types it will
+add the size of the type pointed to multiplied by the number added, ie:
+```
+    let x: i16* = &some_i16;    ->  0x0072
+    x += 2;                     ->  0x0072 + (2 * sizeof(i16))  ->  0x0072 + (2 * 2)  ->  0x0072 + 4  ->  0x0076
+```
 
 ### -
-The subtraction operator will work as it does in C on numerical types (Non-pointer types)
+The subtraction operator will work as it does in C on numerical types. for pointer types it wil
+subtract the size of the type pointed to multiplied by the number subtracted (The same as with addition)
 
 ### *
-The multiplication operator will work as it does in C on numerical types
+The multiplication operator will work as it does in C on numerical types, it is a compilation error on
+pointer types
 
 ### /
-The division operator will work as it does in C on numerical types
+The division operator will work as it does in C on numerical types, it is a compilation error on pointer types
 
 ### +=, -=, *=, and /=
-The (+-*/) assignment operators will work as it does in C on numerical types (Non-pointer types)
+The mathematical assignment operators are equivalent to writing 'variable = variable (+-*/) (number or variable)'
 
 ### ++ and --
 The increment and decrement operators will only work on integer and floating point types.

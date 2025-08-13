@@ -25,11 +25,6 @@ const TokenType = enum {
     UInt64,
     Float32,
     Float64,
-    Unsigned,
-    UncheckedInt8,
-    UncheckedInt16,
-    UncheckedInt32,
-    UncheckedInt64,
     True,
     False,
     Void,
@@ -42,7 +37,7 @@ const TokenType = enum {
     ElseIf,
     For,
     While,
-    Class,
+    Enum,
     Struct,
     Typealias,
     Fn,
@@ -80,12 +75,14 @@ const TokenType = enum {
     Minus,
     Asterisk, // Could be a pointer, a multiplication sign, or part of a multiline comment
     Divide,  // Could be a division sign, part of a single line comment, or part of a multiline comment
+    Modulo,
     Equal,
 
     PlusEqual,
     MinusEqual,
     MultiplyEqual,
     DivideEqual,
+    ModuloEqual,
 
     Increment,
     Decrement,
@@ -212,6 +209,10 @@ pub fn tokinize(file: std.fs.File) !std.ArrayList(Token) {
                             tokens.items.ptr[tokens.items.len - 1].type = .Increment;
                             skip = 1;
                             start = pos + 2;
+                        } else if(data[pos + 1] == '=') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .PlusEqual;
+                            skip = 1;
+                            start = pos + 2;
                         } else {
                             start = pos + 1;
                         }
@@ -228,6 +229,28 @@ pub fn tokinize(file: std.fs.File) !std.ArrayList(Token) {
                     if(data.len - 1 > pos) {
                         if(data[pos + 1] == '-') {
                             tokens.items.ptr[tokens.items.len - 1].type = .Decrement;
+                            skip = 1;
+                            start = pos + 2;
+                        } else if(data[pos + 1] == '=') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .MinusEqual;
+                            skip = 1;
+                            start = pos + 2;
+                        } else {
+                            start = pos + 1;
+                        }
+                    }
+                    continue;
+                },
+                '%' => {
+                    if(in_word) {
+                        in_word = false;
+                        try tokens.append(tokenize_word(data[start..pos]));
+                    }
+                    try tokens.append(Token { .type = .Modulo, .data = null });
+                    // Check for another minus sign
+                    if(data.len - 1 > pos) {
+                        if(data[pos + 1] == '=') {
+                            tokens.items.ptr[tokens.items.len - 1].type = .ModuloEqual;
                             skip = 1;
                             start = pos + 2;
                         } else {
@@ -599,22 +622,10 @@ fn tokenize_word(word: [] u8) Token {
         return Token { .type = .UInt64, .data = null };
     }
     // Floating point types
-    else if(streql(word, "f32") or streql(word, "float")) {
+    else if(streql(word, "f32")) {
         return Token { .type = .Float32, .data = null };
-    } else if(streql(word, "f64") or streql(word, "double")) {
+    } else if(streql(word, "f64")) {
         return Token { .type = .Float64, .data = null };
-    }
-    // C style integers
-    else if(streql(word, "unsinged")) {
-        return Token { .type = .Unsigned, .data = null };
-    } else if(streql(word, "char")) {
-        return Token { .type = .UncheckedInt8, .data = null };
-    } else if(streql(word, "short")) {
-        return Token { .type = .UncheckedInt16, .data = null };
-    } else if(streql(word, "int")) {
-        return Token { .type = .UncheckedInt32, .data = null };
-    } else if(streql(word, "long")) {
-        return Token { .type = .UncheckedInt64, .data = null };
     }
     // Booleans
     else if(streql(word, "bool")) {
@@ -635,8 +646,8 @@ fn tokenize_word(word: [] u8) Token {
         return Token { .type = .For, .data = null };
     } else if(streql(word, "while")) {
         return Token { .type = .While, .data = null };
-    } else if(streql(word, "class")) {
-        return Token { .type = .Class, .data = null };
+    } else if(streql(word, "enum")) {
+        return Token { .type = .Enum, .data = null };
     } else if(streql(word, "struct")) {
         return Token { .type = .Struct, .data = null };
     } else if(streql(word, "typealias")) {
