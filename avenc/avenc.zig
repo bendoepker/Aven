@@ -1,5 +1,6 @@
 const std = @import("std");
 const lexer = @import("lexer.zig");
+const parser = @import("parser.zig");
 const print = std.debug.print;
 
 pub fn main() !u8 {
@@ -18,6 +19,8 @@ pub fn main() !u8 {
         print("{s}\n", .{arg});
     // All of the command line arguments are in args, the first argument is always the file path
     const tokens = try lexer.tokinize(file);
+
+    // DEBUG: Print the tokens
     for(0..tokens.items.len) |i| {
         const tk = tokens.items[i];
         print("{s}", .{@tagName(tk.type)});
@@ -26,6 +29,9 @@ pub fn main() !u8 {
         }
         print("\n", .{});
     }
+
+    // Parse the tokens and generate an ast
+    const ast = parse(tokens);
 
     return 0;
 }

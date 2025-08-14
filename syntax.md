@@ -87,6 +87,18 @@ All functions begin with the keyword 'fn' and have a return type specified after
     fn function_name(param1: param1_type, param2: param2_type): return_type { }
 ```
 Every parameter for a function must explicitly define its parameter type after each parameter
+
+### Function Grammar
+fn |FunctionName| ( [ |Param1| : |Param1 Type| [ , |ParamX| : | |ParamX Type| ] ] ) : |Return Type| { |Statements| }
+
+All functions begin with the 'fn' keyword followed by the name of the function
+After the function name is a set of parentheses
+Within the parentheses can either be No parameters (empty parentheses), one parmeter followed by a colon
+and its associated type, and optionally more sets of paremeters and their types separated by commas
+After the parentheses is a colon followed by the return type of the function
+The return type is followed by a set of curly braces which enclose the statements which are executed by the function
+
+## Function Pointers
 Function Pointer:   fnptr function_name(param1: param1_type, param2: param2_type): return_type;
 
 ## String Literals
