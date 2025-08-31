@@ -111,13 +111,32 @@ const TokenType = enum {
     LogicalOr,
 
     // Misc
-    Unknown
+    Unknown,
+    EndOfFile,
 };
 
 const Token = struct {
     type: TokenType,
     data: ?[]u8,
 };
+
+fn sanitize_str_lit(data: []u8) []u8 {
+    var real_length: usize = 0;
+    for(0..data.len) |i| {
+        switch(data[i]) {
+            '\\' => {
+            }
+        }
+    }
+}
+
+fn sanitize_tokens(tokens: std.ArrayList(Token)) !void {
+    for(0..tokens.len) |i| {
+        if(tokens[i].type == .StringLiteral) {
+            tokens[i].data = sanitize_str_lit(tokens[i].data);
+        }
+    }
+}
 
 pub fn tokinize(file: std.fs.File) !std.ArrayList(Token) {
     const data = try file.readToEndAlloc(alc, 8192);
@@ -599,6 +618,26 @@ pub fn tokinize(file: std.fs.File) !std.ArrayList(Token) {
             }
         }
     }
+
+
+    if(in_word) {
+        try tokens.append(tokenize_word(data[start..data.len]));
+    }
+
+    if(in_char) {
+        try tokens.append(.{ .type = .CharacterLiteral, .data = data[start+1..data.len]});
+    }
+
+    if(in_string) {
+        try tokens.append(.{ .type = .StringLiteral, .data = data[start+1..data.len]});
+    }
+
+    if(in_ml_comment) {
+        for(ml_comment_beginning..tokens.items.len) |_| {
+            _ = tokens.pop();
+        }
+    }
+    try tokens.append(.{.type = .EndOfFile, .data = null });
     return tokens;
 }
 

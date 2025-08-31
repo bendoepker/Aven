@@ -13,7 +13,7 @@ const ExpressionAST = union(Expression) {
 };
 
 const AvenAST = struct {
-
+    expressions: std.ArrayList(Expression),
 };
 
 const FunctionAST = struct {
@@ -43,9 +43,8 @@ pub fn parse(tokens: std.ArrayList(lexer.Token)) AvenAST {
         if(expected.items[0].type == .Unknown) {
             switch(cur.type) {
                 .Fn => {
-                    
-                }
-                else => return error.SyntaxError;
+                },
+                else => return error.SyntaxError,
             }
         }
     }

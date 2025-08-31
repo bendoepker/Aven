@@ -31,7 +31,7 @@ pub fn main() !u8 {
     }
 
     // Parse the tokens and generate an ast
-    const ast = parse(tokens);
+    //const ast = parser.parse(tokens);
 
     return 0;
 }
