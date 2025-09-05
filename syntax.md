@@ -43,16 +43,17 @@ struct:             structured data without implicitly related functions
 enum:               enumerated list of constants which can be manually set to a integral value 
                     (i64) or automatically counted if left unannotated
 
-typealias:          alias a type to another name
-fn:                 function
 fnptr:              function pointer
 let:                variable declarator
+
+typealias:          alias a type to another name
+fn:                 function
+trait:              define traits that a class must inherit
 
 import:             import external functionality
 enable:             enable a language feature, library ability, or compiler feature
 disable:            disable a language feature, library ability, or compiler feature
 
-trait:              define traits that a class must inherit
 self (type):        referring to the type which inherits a trait
 self (variable):    referring to the instance of the class which a function is being called from
 ```
@@ -198,3 +199,20 @@ similar to inheritance, but there can be no trait hierarchy. A trait decorator c
 Here, the trait named 'MyTrait' includes a function named 'doSomething', this function notably has a parameter
 of type 'self' which is special to traits. When a trait function parameter has type 'self' then the class that
 implements the trait must use that class type as the type for that parameter
+
+## Grammar Graph
+```
+    |-----------------------------------------------------------------|
+    v
+Unscoped |-> import -> " -> filepath / module name -> " ->
+         |                                                            |-> ) -> New scope
+         |-> fn -> function name -> ( -> parameter name -> : -> type -|
+         |                               ^                            |-> , -|
+         |                               |-----------------------------------|
+         |-> trait TODO traits
+         |-> typealias TODO typedefs
+         |-> struct TODO structs
+         |-> enum TODO enumerations
+         |-> [[ TODO trait decorators
+         |-> @ TODO target tag
+```

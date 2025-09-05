@@ -146,16 +146,18 @@ pub fn tokinize(file: std.fs.File) !std.ArrayList(Token) {
     }
 
     var tokens = std.ArrayList(Token).init(alc);
+
     var start: usize = 0;
+    var ml_comment_beginning: usize = 0;
+    var string_car_ret: usize = 0;
+    var string_newline: usize = 0;
+    var skip: usize = 0;
+
     var in_string = false;
     var in_char = false;
     var in_word = false;
     var in_sl_comment = false;
     var in_ml_comment = false;
-    var ml_comment_beginning: usize = 0;
-    var string_car_ret: usize = 0;
-    var string_newline: usize = 0;
-    var skip: usize = 0;
 
     // Main loop, iterating over each character and constructing an array of tokens
     //TODO: Multi line comments, multiple character symbols
@@ -308,7 +310,7 @@ pub fn tokinize(file: std.fs.File) !std.ArrayList(Token) {
                         in_word = false;
                         try tokens.append(tokenize_word(data[start..pos]));
                     }
-                    try tokens.append(Token { .type = .Divide, .data = null });
+                    try tokens.append(Token { .type = .Asterisk, .data = null });
                     // Check for an equal sign or forward slash
                     if(data.len - 1 > pos) {
                         if(data[pos + 1] == '=') {
